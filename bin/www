@@ -7,6 +7,7 @@
 var debug = require('debug')('rk-proxy:server');
 var http = require('http');
 var httpProxy = require('http-proxy');
+var internalApps = require('../internal-apps');
 
 /**
  * Get port from environment and store in Express.
@@ -26,6 +27,9 @@ var server = http.createServer(function(req, res) {
     // ryankoval.com
     target: 'http://localhost:3000'
   });
+
+  internalApps(proxy, req, res);
+
 });
 
 /**
