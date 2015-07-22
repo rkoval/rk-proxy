@@ -2,8 +2,9 @@
   "ports": {
     "80": {
       "router": {
-        "blog.*": 2368,
-        "*": 3000
+        "blog.ryankoval.com": 2368,
+        "www.ryankoval.com": 3000,
+        "ryankoval.com": 3000
       }
     },
     "silent": false
