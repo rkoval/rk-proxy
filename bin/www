@@ -5,6 +5,9 @@ var httpMaster = new HttpMaster();
 var internalApps = require('../internal-apps');
 var httpMasterConfig = require('../http-master-config.json');
 
-httpMaster.init(internalApps(httpMasterConfig), function(err) {
+var config = internalApps(httpMasterConfig);
+console.log('Started proxy using config:', JSON.stringify(config));
+
+httpMaster.init(config, function(err) {
   console.log(err);
 });
