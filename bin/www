@@ -1,13 +1,74 @@
 #!/usr/bin/env node
 
-var HttpMaster = require('http-master');
-var httpMaster = new HttpMaster();
+/**
+ * Module dependencies.
+ */
+
+var debug = require('debug')('rk-proxy:server');
+var http = require('http');
+var httpProxy = require('http-proxy');
 var internalApps = require('../internal-apps');
-var httpMasterConfig = require('../http-master-config.json');
 
-var config = internalApps(httpMasterConfig);
-console.log('Started proxy using config:', JSON.stringify(config));
+/**
+ * Get port from environment and store in Express.
+ */
 
-httpMaster.init(config, function(err) {
-  console.log(err);
+var port = parseInt(process.env.PORT, 10) || 5000;
+
+/**
+ * Create HTTP server.
+ */
+
+var proxy = httpProxy.createProxyServer({});
+
+
+var server = http.createServer(function(req, res) {
+  proxy.web(req, res, {
+    // ryankoval.com
+    target: 'http://localhost:3000'
+  });
+
+  internalApps(proxy, req, res);
+
 });
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+proxy.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error('Port ' + port + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error('Port ' + port + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  debug('Listening on port ' + server.address().port);
+}
