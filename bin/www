@@ -1,74 +1,43 @@
 #!/usr/bin/env node
 
-/**
- * Module dependencies.
- */
-
-var debug = require('debug')('rk-proxy:server');
 var http = require('http');
 var httpProxy = require('http-proxy');
-var internalApps = require('../internal-apps');
+var _ = require('lodash');
+var mappings = (function() {
+  var internalApps = require('../internal-apps');
+  return internalApps(require('../mappings'));
+}());
 
-/**
- * Get port from environment and store in Express.
- */
+(function() {
 
-var port = parseInt(process.env.PORT, 10) || 5000;
+  var proxy = httpProxy.createProxyServer({});
 
-/**
- * Create HTTP server.
- */
+  var router = function(req, res) {
 
-var proxy = httpProxy.createProxyServer({});
+    var host = req.headers.host;
+    var redirect = _.find(mappings, function(mapping) {
+      return _.contains(host, mapping.contains);
+    });
 
+    // if none found in mapping, fall back to main site
+    if (!redirect) {
+      redirect = {
+        redirect: 'http://localhost:3000'
+      };
+    }
 
-var server = http.createServer(function(req, res) {
-  proxy.web(req, res, {
-    // ryankoval.com
-    target: 'http://localhost:3000'
+    if (_.contains(redirect.redirect, 'localhost')) {
+      // route internally
+      proxy.web(req, res, { target: redirect.redirect });
+    } else {
+      // redirect externally
+      res.writeHead(301, {'Location': redirect.redirect });
+      res.end();
+    }
+  };
+
+  var port = process.env.PORT || 18080;
+  var server = http.createServer(router).listen(port, function() {
+    console.log('Listening on port ' + server.address().port);
   });
-
-  internalApps(proxy, req, res);
-
-});
-
-/**
- * Listen on provided port, on all network interfaces.
- */
-
-server.listen(port);
-server.on('error', onError);
-proxy.on('error', onError);
-server.on('listening', onListening);
-
-/**
- * Event listener for HTTP server "error" event.
- */
-
-function onError(error) {
-  if (error.syscall !== 'listen') {
-    throw error;
-  }
-
-  // handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error('Port ' + port + ' requires elevated privileges');
-      process.exit(1);
-      break;
-    case 'EADDRINUSE':
-      console.error('Port ' + port + ' is already in use');
-      process.exit(1);
-      break;
-    default:
-      throw error;
-  }
-}
-
-/**
- * Event listener for HTTP server "listening" event.
- */
-
-function onListening() {
-  debug('Listening on port ' + server.address().port);
-}
+})();
