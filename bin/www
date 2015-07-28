@@ -14,9 +14,7 @@ var mappings = (function() {
 
   var proxy = httpProxy.createProxyServer({});
 
-  var router = function(req, res) {
-
-    var host = req.headers.host;
+  var mapToRedirect = function mapToRedirect(host) {
     var redirect = _.find(mappings, function(mapping) {
       return _.contains(host, mapping.contains);
     });
@@ -27,7 +25,10 @@ var mappings = (function() {
         redirect: 'http://localhost:3000'
       };
     }
+    return redirect;
+  };
 
+  var performRedirect = function performRedirect(redirect, req, res) {
     if (_.contains(redirect.redirect, 'localhost')) {
       // route internally
       proxy.web(req, res, { target: redirect.redirect });
@@ -39,7 +40,7 @@ var mappings = (function() {
     }
   };
 
-  var trackAnalytics = function(redirect) {
+  var trackAnalytics = function trackAnalytics(redirect) {
     return new Promise(function(resolve, reject) {
       var requestPayload = querystring.stringify({
         cid: uuid.v4(),
@@ -63,6 +64,12 @@ var mappings = (function() {
       request.write(requestPayload);
       request.end();
     });
+  };
+
+  var router = function(req, res) {
+    var host = req.headers.host;
+    var redirect = mapToRedirect(host);
+    performRedirect(redirect, req, res);
   };
 
   var port = process.env.PORT || 18080;
