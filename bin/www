@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 var http = require('http');
+var querystring = require('querystring');
+var uuid = require('node-uuid');
 var httpProxy = require('http-proxy');
 var _ = require('lodash');
 var mappings = (function() {
@@ -31,9 +33,36 @@ var mappings = (function() {
       proxy.web(req, res, { target: redirect.redirect });
     } else {
       // redirect externally
-      res.writeHead(301, {'Location': redirect.redirect });
+      trackAnalytics(redirect);
+      res.writeHead(307, {'Location': redirect.redirect });
       res.end();
     }
+  };
+
+  var trackAnalytics = function(redirect) {
+    return new Promise(function(resolve, reject) {
+      var requestPayload = querystring.stringify({
+        cid: uuid.v4(),
+        v: '1',
+        tid: 'UA-64912146-1', // ID of my analytics
+        t: 'pageview',
+        dp: redirect.contains || '/',
+        dt: 'ryankoval.com'
+      });
+
+      var options = {
+        host: 'www.google-analytics.com',
+        port: 80,
+        path: '/collect',
+        method: 'POST'
+      };
+
+      var request = http.request(options, function(res) {
+        resolve(res);
+      });
+      request.write(requestPayload);
+      request.end();
+    });
   };
 
   var port = process.env.PORT || 18080;
