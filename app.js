@@ -6,8 +6,8 @@ var uuid = require('node-uuid');
 var httpProxy = require('http-proxy');
 var _ = require('lodash');
 var mappings = (function() {
-  var internalApps = require('../internal-apps');
-  return internalApps(require('../mappings'));
+  var internalApps = require('./internal-apps');
+  return internalApps(require('./mappings'));
 }());
 
 (function() {
