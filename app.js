@@ -1,20 +1,51 @@
 #!/usr/bin/env node
 
-var http = require('http');
-var querystring = require('querystring');
-var uuid = require('node-uuid');
-var httpProxy = require('http-proxy');
-var _ = require('lodash');
-var mappings = (function() {
-  var internalApps = require('./internal-apps');
+const http = require('http');
+const httpProxy = require('http-proxy');
+const _ = require('lodash');
+const ua = require('universal-analytics');
+const proxy = httpProxy.createProxyServer({});
+const mappings = (function() {
+  const internalApps = require('./internal-apps');
   return internalApps(require('./mappings'));
 }());
 
 (function() {
 
-  var proxy = httpProxy.createProxyServer({});
+  const cookieParser = require('cookie-parser')();
 
-  var mapToRedirect = function mapToRedirect(host) {
+  const generateGaCookie = function generateGaCookie(req, res, next) {
+    const pattern = /1\.\d\.\d{10}\.\d*/i;
+    if (!req.cookies._ga || !req.cookies._ga.match(pattern)) {
+      // http://stackoverflow.com/questions/16102436/what-are-the-values-in-ga-cookie
+      const version = '1';
+      const host = req.headers.host;
+      const subdomains = host.split('.');
+      const domain = (function createDomain() {
+        var result = host;
+        if (result.indexOf(':') > -1) {
+          result = result.substr(0, result.indexOf(':'));
+        }
+
+        result = result.split('.');
+        if (result.length > 2) {
+          result = result.slice(1);
+        }
+
+        return result.join('.');
+      }());
+      const random = _.random(Math.pow(10, 9), Math.pow(10, 10) - 1);
+      const date = Math.round(new Date().getTime() / 1000);
+      req.cookies._ga = 'GA' + version + '.' + subdomains.length + '.' + random + '.' + date;
+      res.setHeader('Set-Cookie', ['_ga=' + req.cookies._ga + '; domain=' + domain]);
+    }
+    next()
+  };
+
+  const analyticsMiddleware = ua.middleware('UA-64912146-1');
+
+  const getRedirectMapping = function getRedirectMapping(req, res, next) {
+    const host = req.headers.host;
     var redirect = _.find(mappings, function(mapping) {
       return _.contains(host, mapping.contains);
     });
@@ -25,55 +56,54 @@ var mappings = (function() {
         redirect: 'http://localhost:3000'
       };
     }
-    return redirect;
+    next(redirect);
   };
 
-  var performRedirect = function performRedirect(redirect, req, res) {
+  const sendAnalytics = function sendAnalytics(req, res, next, redirect) {
+    new Promise(function(resolve, reject) {
+      if (redirect.contains) {
+        req.visitor.pageview(redirect.contains, function() {
+          resolve();
+        }).send();
+      }
+    });
+    next(redirect)
+  };
+
+  const performRedirect = function performRedirect(req, res, next, redirect) {
     if (_.contains(redirect.redirect, 'localhost')) {
       // route internally
       proxy.web(req, res, { target: redirect.redirect });
     } else {
       // redirect externally
-      trackAnalytics(redirect);
-      res.writeHead(307, {'Location': redirect.redirect });
+      res.writeHead(307, { 'Location': redirect.redirect });
       res.end();
     }
+    next();
   };
 
-  var trackAnalytics = function trackAnalytics(redirect) {
-    return new Promise(function(resolve, reject) {
-      var requestPayload = querystring.stringify({
-        cid: uuid.v4(),
-        v: '1',
-        tid: 'UA-64912146-1', // ID of my analytics
-        t: 'pageview',
-        dp: redirect.contains || '/',
-        dt: 'ryankoval.com'
-      });
+  const done = function() { return true; };
 
-      var options = {
-        host: 'www.google-analytics.com',
-        port: 80,
-        path: '/collect',
-        method: 'POST'
-      };
+  const router = function(req, res) {
+    const functions = [
+      cookieParser,
+      generateGaCookie,
+      analyticsMiddleware,
+      getRedirectMapping,
+      sendAnalytics,
+      performRedirect,
+      done
+    ];
 
-      var request = http.request(options, function(res) {
-        resolve(res);
-      });
-      request.write(requestPayload);
-      request.end();
+    const chain = _.reduceRight(functions, function(flattened, other) {
+      return _.partial(other, req, res, flattened)
     });
+
+    chain();
   };
 
-  var router = function(req, res) {
-    var host = req.headers.host;
-    var redirect = mapToRedirect(host);
-    performRedirect(redirect, req, res);
-  };
-
-  var port = process.env.PORT || 18080;
-  var server = http.createServer(router).listen(port, function() {
+  const port = process.env.PORT || 18080;
+  const server = http.createServer(router).listen(port, function () {
     console.log('Listening on port ' + server.address().port);
   });
 })();
