@@ -5,12 +5,9 @@ const httpProxy = require('http-proxy');
 const _ = require('lodash');
 const ua = require('universal-analytics');
 const proxy = httpProxy.createProxyServer({});
-const mappings = (function() {
-  const internalApps = require('./internal-apps');
-  return internalApps(require('./mappings'));
-}());
+const mappings = require('config').get('mappings');
 
-(function() {
+module.exports = (function() {
 
   const cookieParser = require('cookie-parser')();
 
@@ -46,15 +43,13 @@ const mappings = (function() {
 
   const getRedirectMapping = function getRedirectMapping(req, res, next) {
     const host = req.headers.host;
-    var redirect = _.find(mappings, function(mapping) {
-      return _.contains(host, mapping.contains);
+    var redirect = _.find(mappings, function(value, key) {
+      return _.contains(host, key);
     });
 
     // if none found in mapping, fall back to main site
     if (!redirect) {
-      redirect = {
-        redirect: 'http://localhost:3000'
-      };
+      redirect = mappings['*'];
     }
     next(redirect);
   };
@@ -71,12 +66,12 @@ const mappings = (function() {
   };
 
   const performRedirect = function performRedirect(req, res, next, redirect) {
-    if (_.contains(redirect.redirect, 'localhost')) {
+    if (_.contains(redirect, 'localhost')) {
       // route internally
-      proxy.web(req, res, { target: redirect.redirect });
+      proxy.web(req, res, { target: redirect });
     } else {
       // redirect externally
-      res.writeHead(307, { 'Location': redirect.redirect });
+      res.writeHead(307, { 'Location': redirect });
       res.end();
     }
     next();
@@ -106,4 +101,8 @@ const mappings = (function() {
   const server = http.createServer(router).listen(port, function () {
     console.log('Listening on port ' + server.address().port);
   });
+
+  return {
+    getRedirectMapping
+  };
 })();
