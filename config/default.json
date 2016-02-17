@@ -7,5 +7,6 @@
     "twitter": "https://twitter.com/whoaitskoval",
     "dotfiles": "https://raw.github.com/rkoval/dotfiles/master/bin/dotfiles",
     "*": "http://localhost:3000"
-  }
+  },
+  "host": "localhost"
 }

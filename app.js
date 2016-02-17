@@ -66,7 +66,7 @@ module.exports = (function() {
   };
 
   const performRedirect = function performRedirect(req, res, next, redirect) {
-    if (_.contains(redirect, 'localhost')) {
+    if (_.contains(redirect, config.get('host'))) {
       // route internally
       proxy.web(req, res, { target: redirect });
     } else {
