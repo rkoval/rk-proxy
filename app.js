@@ -5,7 +5,8 @@ const httpProxy = require('http-proxy');
 const _ = require('lodash');
 const ua = require('universal-analytics');
 const proxy = httpProxy.createProxyServer({});
-const mappings = require('config').get('mappings');
+const config = require('config');
+const mappings = config.get('mappings');
 
 module.exports = (function() {
 
