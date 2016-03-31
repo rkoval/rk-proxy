@@ -1,12 +1,13 @@
 {
   "mappings": {
-    "blog": "http://localhost:2368",
     "github": "https://github.com/rkoval",
     "resume": "https://www.dropbox.com/s/i7j7ingbu8e0jer/Ryan%20Koval%20Resume.pdf?dl=1",
     "linkedin": "https://www.linkedin.com/pub/ryan-koval/34/44a/459",
     "twitter": "https://twitter.com/whoaitskoval",
     "dotfiles": "https://raw.github.com/rkoval/dotfiles/master/bin/dotfiles",
-    "*": "http://localhost:3000"
+    "rooooney": 3002,
+    "sbotify": 3001,
+    "*": 3000
   },
-  "host": "localhost"
+  "host": "http://localhost"
 }

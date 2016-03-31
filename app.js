@@ -67,9 +67,12 @@ module.exports = (function() {
   };
 
   const performRedirect = function performRedirect(req, res, next, redirect) {
-    if (_.contains(redirect, config.get('host'))) {
+    if (_.isNumber(redirect)) {
       // route internally
-      proxy.web(req, res, { target: redirect });
+      const port = redirect;
+      const host = config.get('host');
+      const target = `${host}:${port}`;
+      proxy.web(req, res, { target: target });
     } else {
       // redirect externally
       res.writeHead(307, { 'Location': redirect });
